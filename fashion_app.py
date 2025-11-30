@@ -43,7 +43,7 @@ def setup_dataset():
     Returns the path to the extracted dataset folder.
     """
     zip_path = "myntradataset.zip"
-    dataset_folder = "myntradataset"
+    dataset_folder = "myntradataset"  # This matches your Google Drive folder name
     
     # Check if dataset already exists
     if os.path.exists(dataset_folder) and os.path.exists(f"{dataset_folder}/images"):
@@ -87,9 +87,9 @@ class FeatureExtractor:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         if model_name == 'resnet50':
-            self.model = models.resnet50(pretrained=True)
+            self.model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)
         else:
-            self.model = models.resnet18(pretrained=True)
+            self.model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
         
         self.model = nn.Sequential(*list(self.model.children())[:-1])
         self.model = self.model.to(self.device)
@@ -166,6 +166,10 @@ def load_model():
     
     features = model_data['features']
     metadata = model_data['metadata']
+    
+    # Fix Windows paths to work on Linux (Streamlit Cloud)
+    if 'image_path' in metadata.columns:
+        metadata['image_path'] = metadata['image_path'].str.replace('\\', '/', regex=False)
     
     st.sidebar.success("Model Loaded!")
     st.sidebar.info(f"Items: {len(metadata):,}")
@@ -316,7 +320,7 @@ def main():
     recommender, extractor, metadata = load_model()
     
     st.sidebar.title("Navigation")
-    mode = st.sidebar.radio("", ["Browse Catalog", "Upload Image", "Analytics"])
+    mode = st.sidebar.radio("Select Mode", ["Browse Catalog", "Upload Image", "Analytics"], label_visibility="collapsed")
     
     if mode == "Browse Catalog":
         browse_catalog_mode(recommender, metadata)
