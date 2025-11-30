@@ -10,6 +10,9 @@ from torchvision import models, transforms
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 import matplotlib.pyplot as plt
+import zipfile
+import requests
+import gdown
 
 st.set_page_config(
     page_title="Fashion Recommendation System",
@@ -28,6 +31,62 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Google Drive Configuration
+GOOGLE_DRIVE_FOLDER_ID = "1VCXoOvi7fLpfzWKEtJ4kZyOeF2CTu3dH"  # Your Google Drive folder ID
+
+@st.cache_resource
+def setup_dataset():
+    """
+    Downloads the dataset folder from Google Drive (only on first run).
+    Returns the path to the dataset folder.
+    """
+    dataset_folder = "myntradataset"
+    images_folder = f"{dataset_folder}/images"
+    
+    # Check if dataset already exists
+    if os.path.exists(images_folder):
+        try:
+            image_count = len([f for f in os.listdir(images_folder) if f.endswith(('.jpg', '.jpeg', '.png'))])
+            if image_count > 0:
+                st.sidebar.info(f"✅ Dataset loaded ({image_count:,} images)")
+                return dataset_folder
+        except:
+            pass
+    
+    # Create folder structure
+    os.makedirs(images_folder, exist_ok=True)
+    
+    # Download entire folder from Google Drive
+    try:
+        with st.spinner("📥 Downloading dataset from Google Drive (first time only)..."):
+            # gdown can download entire folders
+            folder_url = f"https://drive.google.com/drive/folders/{GOOGLE_DRIVE_FOLDER_ID}"
+            
+            # Download folder contents directly to myntradataset
+            gdown.download_folder(folder_url, output=dataset_folder, quiet=False, use_cookies=False)
+            
+            st.sidebar.success("✅ Dataset downloaded successfully!")
+    except Exception as e:
+        st.error(f"❌ Error downloading dataset: {str(e)}")
+        st.info("💡 Alternative: Make sure folder is public (Anyone with link → Viewer)")
+        st.info("💡 Folder URL: https://drive.google.com/drive/folders/1VCXoOvi7fLpfzWKEtJ4kZyOeF2CTu3dH")
+        st.stop()
+    
+    # Verify dataset structure
+    if os.path.exists(images_folder):
+        try:
+            image_count = len([f for f in os.listdir(images_folder) if f.endswith(('.jpg', '.jpeg', '.png'))])
+            if image_count > 0:
+                st.sidebar.success(f"✅ Dataset ready! {image_count:,} images found")
+            else:
+                st.warning("⚠️ No images found in images folder")
+        except Exception as e:
+            st.warning(f"⚠️ Could not verify images: {str(e)}")
+    else:
+        st.warning("⚠️ Images folder not found. Check folder structure.")
+    
+    return dataset_folder
 
 class FeatureExtractor:
     def __init__(self, model_name='resnet18'):
@@ -256,6 +315,9 @@ def analytics_dashboard(metadata):
 
 def main():
     st.markdown('<h1 style="text-align: center;">Fashion Recommendation System </h1>', unsafe_allow_html=True)
+    
+    # Setup dataset from Google Drive (downloads on first run only)
+    dataset_path = setup_dataset()
     
     recommender, extractor, metadata = load_model()
     
