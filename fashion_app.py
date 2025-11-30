@@ -32,129 +32,53 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Google Drive Configuration - ZIP FILE (for large datasets >50 files)
-# Instructions: 
-# 1. Create a ZIP of your myntradataset folder (with images subfolder inside)
-# 2. Upload the ZIP to Google Drive
-# 3. Right-click ZIP → Share → "Anyone with the link" → Viewer
-# 4. Copy the FILE_ID from the share link and paste below
-GOOGLE_DRIVE_FILE_ID = "YOUR_ZIP_FILE_ID_HERE"  # Replace with your ZIP file ID
+# Google Drive Configuration
+GOOGLE_DRIVE_FILE_ID = "18BZUrFg6aY5sujhWlhVsUUtDr0Q24SEP"  # Your mytra.zip file on Google Drive
+GOOGLE_DRIVE_ZIP_URL = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}"
 
 @st.cache_resource
 def setup_dataset():
     """
-    Downloads and extracts the dataset ZIP from Google Drive (only on first run).
-    Works with large datasets (44k+ images).
-    Returns the path to the dataset folder.
+    Downloads and extracts the dataset from Google Drive (only on first run).
+    Returns the path to the extracted dataset folder.
     """
-    dataset_folder = "myntradataset"
-    images_folder = f"{dataset_folder}/images"
     zip_path = "myntradataset.zip"
+    dataset_folder = "myntradataset"
     
     # Check if dataset already exists
-    if os.path.exists(images_folder):
+    if os.path.exists(dataset_folder) and os.path.exists(f"{dataset_folder}/images"):
+        st.sidebar.info("✅ Dataset already loaded")
+        return dataset_folder
+    
+    # Download ZIP from Google Drive
+    if not os.path.exists(zip_path):
         try:
-            image_files = [f for f in os.listdir(images_folder) if f.endswith(('.jpg', '.jpeg', '.png'))]
-            if len(image_files) > 0:
-                st.sidebar.info(f"✅ Dataset loaded ({len(image_files):,} images)")
-                return dataset_folder
+            with st.spinner("📥 Downloading dataset from Google Drive (3GB - first time only)..."):
+                # Using gdown for better Google Drive support
+                gdown.download(GOOGLE_DRIVE_ZIP_URL, zip_path, quiet=False)
+                st.sidebar.success("✅ Dataset downloaded successfully!")
         except Exception as e:
-            st.sidebar.warning(f"⚠️ Error checking dataset: {str(e)}")
+            st.error(f"❌ Error downloading dataset: {str(e)}")
+            st.info("💡 Make sure your Google Drive link is public and the FILE_ID is correct")
+            st.stop()
     
-    # Show instructions if FILE_ID not configured
-    if GOOGLE_DRIVE_FILE_ID == "YOUR_ZIP_FILE_ID_HERE":
-        st.error("🔧 **Configuration Required!**")
-        st.markdown("""
-        ### 📦 Your dataset has 44,000+ images - Too large for direct folder download!
-        
-        **Please follow these steps:**
-        
-        #### Step 1: Create a ZIP file
-        ```bash
-        # On your computer, create a ZIP of your dataset
-        # Make sure the ZIP contains: myntradataset/images/*.jpg
-        ```
-        
-        #### Step 2: Upload ZIP to Google Drive
-        - Upload `myntradataset.zip` to your Google Drive
-        
-        #### Step 3: Share the ZIP file
-        - Right-click the ZIP → **Share**
-        - Set to **"Anyone with the link"** → **Viewer**
-        - Copy the share link
-        
-        #### Step 4: Get the FILE_ID
-        From your link:
-        ```
-        https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz/view
-                                       ↑ THIS IS YOUR FILE_ID ↑
-        ```
-        
-        #### Step 5: Update the code
-        Edit `fashion_app.py` line 36 and replace:
-        ```python
-        GOOGLE_DRIVE_FILE_ID = "YOUR_ZIP_FILE_ID_HERE"
-        ```
-        With:
-        ```python
-        GOOGLE_DRIVE_FILE_ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz"  # Your actual ID
-        ```
-        
-        #### Alternative: Use local dataset
-        If you're testing locally, just place your `myntradataset` folder here and it will be used automatically.
-        """)
-        st.stop()
-    
-    # Download and extract ZIP file
-    try:
-        # Download ZIP
-        if not os.path.exists(zip_path):
-            with st.spinner("📥 Downloading dataset ZIP from Google Drive (this may take 5-10 minutes for 44k images)..."):
-                file_url = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}"
-                
-                # Use gdown with fuzzy option for large files
-                try:
-                    gdown.download(file_url, zip_path, quiet=False, fuzzy=True)
-                except:
-                    # Fallback for very large files
-                    gdown.download(f"https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}&confirm=t", 
-                                 zip_path, quiet=False)
-                
-                st.sidebar.success("✅ Dataset ZIP downloaded!")
-        
-        # Extract ZIP
-        if not os.path.exists(images_folder):
-            with st.spinner("📂 Extracting dataset (this may take a few minutes for 44k images)..."):
+    # Extract ZIP
+    if not os.path.exists(dataset_folder):
+        try:
+            with st.spinner("📂 Extracting dataset..."):
                 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    # Get total files for progress
-                    total_files = len(zip_ref.namelist())
-                    st.sidebar.info(f"Extracting {total_files:,} files...")
                     zip_ref.extractall()
-                
-                st.sidebar.success("✅ Dataset extracted!")
-        
-        # Verify dataset
-        if os.path.exists(images_folder):
-            image_files = [f for f in os.listdir(images_folder) if f.endswith(('.jpg', '.jpeg', '.png'))]
-            if len(image_files) > 0:
-                st.sidebar.success(f"✅ Dataset ready! {len(image_files):,} images found")
-                return dataset_folder
-            else:
-                st.error("⚠️ No images found in images folder after extraction")
-                st.info("💡 Make sure your ZIP contains: myntradataset/images/*.jpg")
-        else:
-            st.error("⚠️ Images folder not found after extraction")
-            st.info("💡 Expected structure: myntradataset/images/*.jpg")
+                st.sidebar.success("✅ Dataset extracted successfully!")
+        except Exception as e:
+            st.error(f"❌ Error extracting dataset: {str(e)}")
+            st.stop()
     
-    except Exception as e:
-        st.error(f"❌ Error setting up dataset: {str(e)}")
-        st.info("💡 Make sure:")
-        st.markdown("""
-        - ZIP file is shared as "Anyone with the link"
-        - FILE_ID is correct
-        - ZIP contains proper folder structure: `myntradataset/images/*.jpg`
-        """)
-        st.stop()
+    # Verify dataset structure
+    if os.path.exists(f"{dataset_folder}/images"):
+        image_count = len([f for f in os.listdir(f"{dataset_folder}/images") if f.endswith(('.jpg', '.jpeg', '.png'))])
+        st.sidebar.success(f"✅ Dataset ready! {image_count:,} images found")
+    else:
+        st.warning("⚠️ Dataset structure might be incorrect. Expected: mytradataset/images/")
     
     return dataset_folder
 
