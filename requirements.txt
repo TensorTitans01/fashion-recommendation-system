@@ -10,4 +10,5 @@ torchvision
 opencv-python
 scikit-image
 scipy
+gdown
 joblib
